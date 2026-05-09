@@ -7,15 +7,15 @@ import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtList;
+import net.minecraft.ChatFormatting;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,26 +30,26 @@ public class commands {
 
     public static void registerCommands() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> dispatcher.register(
-                CommandManager.literal("allied")
+                Commands.literal("allied")
 
-                        .then(CommandManager.literal("create")
-                                .then(CommandManager.argument("name", StringArgumentType.string())
-                                        .then(CommandManager.argument("tag", StringArgumentType.string()).executes(context -> {
+                        .then(Commands.literal("create")
+                                .then(Commands.argument("name", StringArgumentType.string())
+                                        .then(Commands.argument("tag", StringArgumentType.string()).executes(context -> {
                                                     String teamName = StringArgumentType.getString(context, "name");
                                                     String teamTag = StringArgumentType.getString(context, "tag");
-                                                    ServerPlayerEntity player = context.getSource().getPlayer();
+                                                    ServerPlayer player = context.getSource().getPlayer();
                                                     assert player != null;
-                                                    UUID ownerUuid = player.getUuid();
+                                                    UUID ownerUuid = player.getUUID();
 
-                                                    ServerCommandSource source = context.getSource();
+                                                    CommandSourceStack source = context.getSource();
                                                     MinecraftServer server = source.getServer();
 
                                                     datManager.get().addTeam(teamName, teamTag, ownerUuid);
 
                                                     teamUtils.rebuildTeams(server);
 
-                                                    context.getSource().sendFeedback(
-                                                            () -> Text.of("Successfully created team " + teamName),
+                                                    context.getSource().sendSuccess(
+                                                            () -> Component.nullToEmpty("Successfully created team " + teamName),
                                                             false
                                                     );
                                                     return 1;
@@ -58,88 +58,88 @@ public class commands {
                                 )
                         )
 
-                        .then(CommandManager.literal("disband")
+                        .then(Commands.literal("disband")
                                 .executes(context -> {
-                                    ServerPlayerEntity player = context.getSource().getPlayer();
+                                    ServerPlayer player = context.getSource().getPlayer();
                                     assert player != null;
-                                    UUID ownerUuid = player.getUuid();
+                                    UUID ownerUuid = player.getUUID();
                                     try {
                                         datManager.get().removeTeam(ownerUuid);
                                     } catch (IOException e) {
                                         throw new RuntimeException(e);
                                     }
 
-                                    ServerCommandSource source = context.getSource();
+                                    CommandSourceStack source = context.getSource();
                                     MinecraftServer server = source.getServer();
 
                                     teamUtils.rebuildTeams(server);
 
-                                    context.getSource().sendFeedback(
-                                            () -> Text.of("Successfully Disbanded team"),
+                                    context.getSource().sendSuccess(
+                                            () -> Component.nullToEmpty("Successfully Disbanded team"),
                                             false
                                     );
                                     return 1;
                                 })
                         )
 
-                        .then(CommandManager.literal("leave")
+                        .then(Commands.literal("leave")
                                 .executes(context -> {
-                                    ServerPlayerEntity player = context.getSource().getPlayer();
+                                    ServerPlayer player = context.getSource().getPlayer();
                                     assert player != null;
-                                    UUID ownerUuid = player.getUuid();
+                                    UUID ownerUuid = player.getUUID();
                                     try {
                                         datManager.get().leaveTeam(ownerUuid);
                                     } catch (IOException e) {
                                         throw new RuntimeException(e);
                                     }
 
-                                    ServerCommandSource source = context.getSource();
+                                    CommandSourceStack source = context.getSource();
                                     MinecraftServer server = source.getServer();
 
                                     teamUtils.rebuildTeams(server);
 
-                                    context.getSource().sendFeedback(
-                                            () -> Text.of("Successfully left team"),
+                                    context.getSource().sendSuccess(
+                                            () -> Component.nullToEmpty("Successfully left team"),
                                             false
                                     );
                                     return 1;
                                 })
                         )
 
-                        .then(CommandManager.literal("tm")
+                        .then(Commands.literal("tm")
                                 .executes(context -> {
-                                    ServerPlayerEntity player = context.getSource().getPlayer();
-                                    UUID uuid = player.getUuid();
+                                    ServerPlayer player = context.getSource().getPlayer();
+                                    UUID uuid = player.getUUID();
 
                                     if (!datManager.get().isInTeam(uuid)) {
-                                        context.getSource().sendError(Text.literal("You are not in a team!"));
+                                        context.getSource().sendFailure(Component.literal("You are not in a team!"));
                                         return 0;
                                     }
 
                                     boolean enabled = teamChatManager.toggle(uuid);
-                                    context.getSource().sendFeedback(
-                                            () -> Text.literal(enabled ? "Team Chat Enabled" : "Team Chat Disabled"),
+                                    context.getSource().sendSuccess(
+                                            () -> Component.literal(enabled ? "Team Chat Enabled" : "Team Chat Disabled"),
                                             false
                                     );
                                     return 1;
                                 })
                         )
 
-                        .then(CommandManager.literal("join")
-                                .then(CommandManager.argument("name", StringArgumentType.string())
+                        .then(Commands.literal("join")
+                                .then(Commands.argument("name", StringArgumentType.string())
                                     .executes(context -> {
                                         String teamName = StringArgumentType.getString(context, "name");
-                                        ServerPlayerEntity player = context.getSource().getPlayer();
+                                        ServerPlayer player = context.getSource().getPlayer();
                                         assert player != null;
-                                        UUID ownerUuid = player.getUuid();
+                                        UUID ownerUuid = player.getUUID();
 
-                                        ServerCommandSource source = context.getSource();
+                                        CommandSourceStack source = context.getSource();
                                         MinecraftServer server = source.getServer();
 
                                         datManager.get().sendRequest(teamName, ownerUuid, server);
 
-                                        context.getSource().sendFeedback(
-                                                () -> Text.of("Sent Request to " + teamName),
+                                        context.getSource().sendSuccess(
+                                                () -> Component.nullToEmpty("Sent Request to " + teamName),
                                                 false
                                         );
                                         return 1;
@@ -147,16 +147,16 @@ public class commands {
                                 )
                         )
 
-                        .then(CommandManager.literal("accept")
-                                .then(CommandManager.argument("playerName", StringArgumentType.word())
+                        .then(Commands.literal("accept")
+                                .then(Commands.argument("playerName", StringArgumentType.word())
                                         .suggests((context, builder) -> {
-                                            context.getSource().getServer().getPlayerManager().getPlayerList().forEach(player -> builder.suggest(player.getGameProfile().name()));
+                                            context.getSource().getServer().getPlayerList().getPlayers().forEach(player -> builder.suggest(player.getGameProfile().name()));
                                             return builder.buildFuture();
                                         })
                                         .executes(context -> {
-                                            ServerPlayerEntity owner = context.getSource().getPlayer();
+                                            ServerPlayer owner = context.getSource().getPlayer();
                                             assert owner != null;
-                                            UUID ownerUUID = owner.getUuid();
+                                            UUID ownerUUID = owner.getUUID();
 
                                             String targetName = StringArgumentType.getString(context, "playerName");
                                             UUID targetUUID;
@@ -164,35 +164,35 @@ public class commands {
                                             try {
                                                 targetUUID = UUID.fromString(targetName);
                                             } catch (IllegalArgumentException e) {
-                                                ServerPlayerEntity targetPlayer = context.getSource().getServer()
-                                                        .getPlayerManager()
-                                                        .getPlayer(targetName);
+                                                ServerPlayer targetPlayer = context.getSource().getServer()
+                                                        .getPlayerList()
+                                                        .getPlayerByName(targetName);
 
                                                 if (targetPlayer == null) {
-                                                    context.getSource().sendError(Text.literal("Player not found or not online!"));
+                                                    context.getSource().sendFailure(Component.literal("Player not found or not online!"));
                                                     return 0;
                                                 }
 
-                                                targetUUID = targetPlayer.getUuid();
+                                                targetUUID = targetPlayer.getUUID();
                                             }
 
                                             try {
                                                 datManager.get().handleRequest(ownerUUID, targetUUID, true);
                                             } catch (CommandSyntaxException e) {
-                                                context.getSource().sendError((Text) e.getRawMessage());
+                                                context.getSource().sendFailure((Component) e.getRawMessage());
                                                 return 0;
                                             } catch (IOException e) {
-                                                context.getSource().sendError(Text.literal("An internal error occurred while saving the team data."));
+                                                context.getSource().sendFailure(Component.literal("An internal error occurred while saving the team data."));
                                                 e.printStackTrace();
                                                 return 0;
                                             }
 
-                                            ServerCommandSource source = context.getSource();
+                                            CommandSourceStack source = context.getSource();
                                             MinecraftServer server = source.getServer();
                                             teamUtils.rebuildTeams(server);
 
-                                            context.getSource().sendFeedback(
-                                                    () -> Text.literal("Accepted join request from " + targetName),
+                                            context.getSource().sendSuccess(
+                                                    () -> Component.literal("Accepted join request from " + targetName),
                                                     false
                                             );
                                             return 1;
@@ -200,27 +200,27 @@ public class commands {
                                 )
                         )
 
-                        .then(CommandManager.literal("deny")
-                                .then(CommandManager.argument("playerName", StringArgumentType.word())
+                        .then(Commands.literal("deny")
+                                .then(Commands.argument("playerName", StringArgumentType.word())
                                         .suggests((context, builder) -> {
-                                            context.getSource().getServer().getPlayerManager().getPlayerList().forEach(player -> builder.suggest(player.getGameProfile().name()));
+                                            context.getSource().getServer().getPlayerList().getPlayers().forEach(player -> builder.suggest(player.getGameProfile().name()));
                                             return builder.buildFuture();
                                         })
                                         .executes(context -> {
-                                            ServerPlayerEntity owner = context.getSource().getPlayer();
+                                            ServerPlayer owner = context.getSource().getPlayer();
                                             assert owner != null;
-                                            UUID ownerUUID = owner.getUuid();
+                                            UUID ownerUUID = owner.getUUID();
 
                                             String targetName = StringArgumentType.getString(context, "playerName");
-                                            ServerPlayerEntity targetPlayer = context.getSource().getServer()
-                                                    .getPlayerManager().getPlayer(targetName);
+                                            ServerPlayer targetPlayer = context.getSource().getServer()
+                                                    .getPlayerList().getPlayerByName(targetName);
 
                                             if (targetPlayer == null) {
-                                                context.getSource().sendError(Text.literal("Player not found or not online!"));
+                                                context.getSource().sendFailure(Component.literal("Player not found or not online!"));
                                                 return 0;
                                             }
 
-                                            UUID targetUUID = targetPlayer.getUuid();
+                                            UUID targetUUID = targetPlayer.getUUID();
 
                                             try {
                                                 datManager.get().handleRequest(ownerUUID, targetUUID, false);
@@ -228,8 +228,8 @@ public class commands {
                                                 throw new RuntimeException(e);
                                             }
 
-                                            context.getSource().sendFeedback(
-                                                    () -> Text.literal("Denied join request from " + targetName),
+                                            context.getSource().sendSuccess(
+                                                    () -> Component.literal("Denied join request from " + targetName),
                                                     false
                                             );
                                             return 1;
@@ -237,24 +237,24 @@ public class commands {
                                 )
                         )
 
-                        .then(CommandManager.literal("invite")
-                                .then(CommandManager.argument("playerName", StringArgumentType.word())
+                        .then(Commands.literal("invite")
+                                .then(Commands.argument("playerName", StringArgumentType.word())
                                         .executes(context -> {
-                                            ServerPlayerEntity owner = context.getSource().getPlayer();
-                                            ServerPlayerEntity target = context.getSource()
+                                            ServerPlayer owner = context.getSource().getPlayer();
+                                            ServerPlayer target = context.getSource()
                                                     .getServer()
-                                                    .getPlayerManager()
-                                                    .getPlayer(StringArgumentType.getString(context, "playerName"));
+                                                    .getPlayerList()
+                                                    .getPlayerByName(StringArgumentType.getString(context, "playerName"));
 
                                             if (target == null) {
-                                                context.getSource().sendError(Text.literal("Player not online!"));
+                                                context.getSource().sendFailure(Component.literal("Player not online!"));
                                                 return 0;
                                             }
 
                                             try {
                                                 datManager.get().sendInvite(
-                                                        owner.getUuid(),
-                                                        target.getUuid(),
+                                                        owner.getUUID(),
+                                                        target.getUUID(),
                                                         context.getSource().getServer()
                                                 );
                                             } catch (Exception e) {
@@ -262,8 +262,8 @@ public class commands {
                                                 return 0;
                                             }
 
-                                            context.getSource().sendFeedback(
-                                                    () -> Text.literal("Invite sent."),
+                                            context.getSource().sendSuccess(
+                                                    () -> Component.literal("Invite sent."),
                                                     false
                                             );
                                             return 1;
@@ -271,43 +271,43 @@ public class commands {
                                 )
                         )
 
-                        .then(CommandManager.literal("invAccept")
-                                .then(CommandManager.argument("teamName", StringArgumentType.string())
+                        .then(Commands.literal("invAccept")
+                                .then(Commands.argument("teamName", StringArgumentType.string())
                                         .suggests((context, builder) -> {
-                                            ServerPlayerEntity player = context.getSource().getPlayer();
+                                            ServerPlayer player = context.getSource().getPlayer();
                                             if (player != null) {
                                                 datManager.get()
-                                                        .getInvitedTeams(player.getUuid())
+                                                        .getInvitedTeams(player.getUUID())
                                                         .forEach(builder::suggest);
                                             }
                                             return builder.buildFuture();
                                         })
                                         .executes(context -> {
-                                            ServerPlayerEntity player = context.getSource().getPlayer();
+                                            ServerPlayer player = context.getSource().getPlayer();
                                             if (player == null) return 0;
 
                                             String teamName = StringArgumentType.getString(context, "teamName");
 
                                             try {
                                                 datManager.get().handleInvite(
-                                                        player.getUuid(),
+                                                        player.getUUID(),
                                                         teamName,
                                                         true
                                                 );
                                             } catch (CommandSyntaxException e) {
-                                                context.getSource().sendError((Text) e.getRawMessage());
+                                                context.getSource().sendFailure((Component) e.getRawMessage());
                                                 return 0;
                                             } catch (IOException e) {
-                                                context.getSource().sendError(Text.literal("Failed to save team data."));
+                                                context.getSource().sendFailure(Component.literal("Failed to save team data."));
                                                 e.printStackTrace();
                                                 return 0;
                                             }
 
                                             teamUtils.rebuildTeams(context.getSource().getServer());
 
-                                            context.getSource().sendFeedback(
-                                                    () -> Text.literal("Joined team ")
-                                                            .append(Text.literal(teamName).formatted(Formatting.YELLOW)),
+                                            context.getSource().sendSuccess(
+                                                    () -> Component.literal("Joined team ")
+                                                            .append(Component.literal(teamName).withStyle(ChatFormatting.YELLOW)),
                                                     false
                                             );
                                             return 1;
@@ -315,41 +315,41 @@ public class commands {
                                 )
                         )
 
-                        .then(CommandManager.literal("invDeny")
-                                .then(CommandManager.argument("teamName", StringArgumentType.string())
+                        .then(Commands.literal("invDeny")
+                                .then(Commands.argument("teamName", StringArgumentType.string())
                                         .suggests((context, builder) -> {
-                                            ServerPlayerEntity player = context.getSource().getPlayer();
+                                            ServerPlayer player = context.getSource().getPlayer();
                                             if (player != null) {
                                                 datManager.get()
-                                                        .getInvitedTeams(player.getUuid())
+                                                        .getInvitedTeams(player.getUUID())
                                                         .forEach(builder::suggest);
                                             }
                                             return builder.buildFuture();
                                         })
                                         .executes(context -> {
-                                            ServerPlayerEntity player = context.getSource().getPlayer();
+                                            ServerPlayer player = context.getSource().getPlayer();
                                             if (player == null) return 0;
 
                                             String teamName = StringArgumentType.getString(context, "teamName");
 
                                             try {
                                                 datManager.get().handleInvite(
-                                                        player.getUuid(),
+                                                        player.getUUID(),
                                                         teamName,
                                                         false
                                                 );
                                             } catch (CommandSyntaxException e) {
-                                                context.getSource().sendError((Text) e.getRawMessage());
+                                                context.getSource().sendFailure((Component) e.getRawMessage());
                                                 return 0;
                                             } catch (IOException e) {
-                                                context.getSource().sendError(Text.literal("Failed to save team data."));
+                                                context.getSource().sendFailure(Component.literal("Failed to save team data."));
                                                 e.printStackTrace();
                                                 return 0;
                                             }
 
-                                            context.getSource().sendFeedback(
-                                                    () -> Text.literal("Denied invite from ")
-                                                            .append(Text.literal(teamName).formatted(Formatting.YELLOW)),
+                                            context.getSource().sendSuccess(
+                                                    () -> Component.literal("Denied invite from ")
+                                                            .append(Component.literal(teamName).withStyle(ChatFormatting.YELLOW)),
                                                     false
                                             );
                                             return 1;
@@ -357,19 +357,19 @@ public class commands {
                                 )
                         )
 
-                        .then(CommandManager.literal("info")
+                        .then(Commands.literal("info")
                                 .executes(context -> {
-                                    ServerPlayerEntity player = context.getSource().getPlayer();
+                                    ServerPlayer player = context.getSource().getPlayer();
                                     if (player == null) return 0;
 
-                                    String playerUuid = player.getUuid().toString();
-                                    NbtCompound teams = datManager.get().getData().getCompoundOrEmpty("teams");
+                                    String playerUuid = player.getUUID().toString();
+                                    CompoundTag teams = datManager.get().getData().getCompoundOrEmpty("teams");
 
-                                    NbtCompound playerTeam = null;
+                                    CompoundTag playerTeam = null;
                                     String teamName = null;
 
-                                    for (String key : teams.getKeys()) {
-                                        NbtCompound team = teams.getCompoundOrEmpty(key);
+                                    for (String key : teams.keySet()) {
+                                        CompoundTag team = teams.getCompoundOrEmpty(key);
 
                                         if (team.getString("owner").orElse("").equals(playerUuid)) {
                                             playerTeam = team;
@@ -390,7 +390,7 @@ public class commands {
                                     }
 
                                     if (playerTeam == null) {
-                                        context.getSource().sendFeedback(() -> Text.literal("You are not in a team!"), false);
+                                        context.getSource().sendSuccess(() -> Component.literal("You are not in a team!"), false);
                                         return 0;
                                     }
 
@@ -398,13 +398,13 @@ public class commands {
                                     String ownerUuid = playerTeam.getString("owner").orElse("");
                                     String ownerName = "Unknown";
 
-                                    ServerPlayerEntity owner = null;
+                                    ServerPlayer owner = null;
                                     try {
-                                        if (player.getEntityWorld() instanceof ServerWorld serverWorld) {
+                                        if (player.level() instanceof ServerLevel serverWorld) {
                                             MinecraftServer server = serverWorld.getServer();
-                                            owner = server.getPlayerManager().getPlayer(UUID.fromString(ownerUuid));
+                                            owner = server.getPlayerList().getPlayer(UUID.fromString(ownerUuid));
                                         }
-                                        if (owner != null) ownerName = String.valueOf(owner.getEntity().getName().getString());
+                                        if (owner != null) ownerName = String.valueOf(owner.asLivingEntity().getName().getString());
                                     } catch (IllegalArgumentException ignored) {}
 
                                     var membersList = playerTeam.getListOrEmpty("members");
@@ -414,14 +414,14 @@ public class commands {
                                     for (int i = 0; i < membersList.size(); i++) {
                                         membersList.getString(i).ifPresent(uuidStr -> {
                                             try {
-                                                ServerPlayerEntity member = null;
-                                                if (player.getEntityWorld() instanceof ServerWorld serverWorld) {
+                                                ServerPlayer member = null;
+                                                if (player.level() instanceof ServerLevel serverWorld) {
                                                     MinecraftServer server = serverWorld.getServer();
-                                                    member = server.getPlayerManager().getPlayer(UUID.fromString(uuidStr));
+                                                    member = server.getPlayerList().getPlayer(UUID.fromString(uuidStr));
                                                 }
                                                 if (member != null) {
                                                     if (membersText.length() > 0) membersText.append(", ");
-                                                    membersText.append(member.getEntity().getName().getString());
+                                                    membersText.append(member.asLivingEntity().getName().getString());
                                                 } else {
                                                     offlineCount.getAndIncrement();
                                                 }
@@ -436,34 +436,34 @@ public class commands {
                                         membersText.append("(").append(offlineCount.get()).append(") Offline");
                                     }
 
-                                    Text infoMessage = Text.literal("§6=== Team Info ===\n")
-                                            .append(Text.literal("§eTeam Name: §f" + teamName + "\n"))
-                                            .append(Text.literal("§eTeam Tag: §f" + teamTag + "\n"))
-                                            .append(Text.literal("§eOwner: §f" + ownerName + "\n"))
-                                            .append(Text.literal("§eMembers: §f" + (membersText.length() > 0 ? membersText : "None")));
+                                    Component infoMessage = Component.literal("§6=== Team Info ===\n")
+                                            .append(Component.literal("§eTeam Name: §f" + teamName + "\n"))
+                                            .append(Component.literal("§eTeam Tag: §f" + teamTag + "\n"))
+                                            .append(Component.literal("§eOwner: §f" + ownerName + "\n"))
+                                            .append(Component.literal("§eMembers: §f" + (membersText.length() > 0 ? membersText : "None")));
 
-                                    context.getSource().sendFeedback(() -> infoMessage, false);
+                                    context.getSource().sendSuccess(() -> infoMessage, false);
 
                                     return 1;
                                 })
                         )
 
-                        .then(CommandManager.literal("settings")
+                        .then(Commands.literal("settings")
                                 .executes(context -> {
-                                    ServerPlayerEntity player = context.getSource().getPlayer();
+                                    ServerPlayer player = context.getSource().getPlayer();
                                     assert player != null;
 
-                                    String teamName = datManager.get().getTeam(player.getUuid());
+                                    String teamName = datManager.get().getTeam(player.getUUID());
                                     if (teamName != null) {
-                                        NbtList blocked = datManager.get()
+                                        ListTag blocked = datManager.get()
                                                 .getData()
                                                 .getCompoundOrEmpty("settings")
                                                 .getListOrEmpty("blockTeamsSettings");
 
                                         for (int i = 0; i < blocked.size(); i++) {
                                             if (teamName.equalsIgnoreCase(blocked.getString(i).orElse(""))) {
-                                                context.getSource().sendError(
-                                                        Text.literal(
+                                                context.getSource().sendFailure(
+                                                        Component.literal(
                                                                 "Server Admin has disabled you from changing your team settings, please contact the Server's Admin!"
                                                         )
                                                 );
@@ -480,16 +480,16 @@ public class commands {
                                     }
                                     return 1;
                                 })
-                                .then(CommandManager.argument("setting", StringArgumentType.string())
+                                .then(Commands.argument("setting", StringArgumentType.string())
                                         .suggests((context, builder) -> {
-                                            ServerPlayerEntity player = context.getSource().getPlayer();
-                                            NbtCompound teams = datManager.get().getData().getCompoundOrEmpty("teams");
+                                            ServerPlayer player = context.getSource().getPlayer();
+                                            CompoundTag teams = datManager.get().getData().getCompoundOrEmpty("teams");
 
-                                            NbtCompound teamData = null;
-                                            for (String teamName : teams.getKeys()) {
-                                                NbtCompound team = teams.getCompoundOrEmpty(teamName);
+                                            CompoundTag teamData = null;
+                                            for (String teamName : teams.keySet()) {
+                                                CompoundTag team = teams.getCompoundOrEmpty(teamName);
                                                 assert player != null;
-                                                if (team.getString("owner").orElse("").equals(player.getUuid().toString())) {
+                                                if (team.getString("owner").orElse("").equals(player.getUUID().toString())) {
                                                     teamData = team;
                                                     break;
                                                 }
@@ -497,26 +497,26 @@ public class commands {
 
                                             if (teamData == null) return builder.buildFuture();
 
-                                            NbtCompound settings = teamData.getCompoundOrEmpty("settings");
-                                            for (String key : settings.getKeys()) builder.suggest(key);
+                                            CompoundTag settings = teamData.getCompoundOrEmpty("settings");
+                                            for (String key : settings.keySet()) builder.suggest(key);
 
                                             return builder.buildFuture();
                                         })
                                         .executes(context -> {
-                                            ServerPlayerEntity player = context.getSource().getPlayer();
+                                            ServerPlayer player = context.getSource().getPlayer();
                                             assert player != null;
 
-                                            String teamName = datManager.get().getTeam(player.getUuid());
+                                            String teamName = datManager.get().getTeam(player.getUUID());
                                             if (teamName != null) {
-                                                NbtList blocked = datManager.get()
+                                                ListTag blocked = datManager.get()
                                                         .getData()
                                                         .getCompoundOrEmpty("settings")
                                                         .getListOrEmpty("blockTeamsSettings");
 
                                                 for (int i = 0; i < blocked.size(); i++) {
                                                     if (teamName.equalsIgnoreCase(blocked.getString(i).orElse(""))) {
-                                                        context.getSource().sendError(
-                                                                Text.literal(
+                                                        context.getSource().sendFailure(
+                                                                Component.literal(
                                                                         "Server Admin has disabled you from changing your team settings, please contact the Server's Admin!"
                                                                 )
                                                         );
@@ -534,22 +534,22 @@ public class commands {
                                             }
                                             return 1;
                                         })
-                                        .then(CommandManager.argument("value", BoolArgumentType.bool())
+                                        .then(Commands.argument("value", BoolArgumentType.bool())
                                                 .executes(context -> {
-                                                    ServerPlayerEntity player = context.getSource().getPlayer();
+                                                    ServerPlayer player = context.getSource().getPlayer();
                                                     assert player != null;
 
-                                                    String teamName = datManager.get().getTeam(player.getUuid());
+                                                    String teamName = datManager.get().getTeam(player.getUUID());
                                                     if (teamName != null) {
-                                                        NbtList blocked = datManager.get()
+                                                        ListTag blocked = datManager.get()
                                                                 .getData()
                                                                 .getCompoundOrEmpty("settings")
                                                                 .getListOrEmpty("blockTeamsSettings");
 
                                                         for (int i = 0; i < blocked.size(); i++) {
                                                             if (teamName.equalsIgnoreCase(blocked.getString(i).orElse(""))) {
-                                                                context.getSource().sendError(
-                                                                        Text.literal(
+                                                                context.getSource().sendFailure(
+                                                                        Component.literal(
                                                                                 "Server Admin has disabled you from changing your team settings, please contact the Server's Admin!"
                                                                         )
                                                                 );
@@ -568,12 +568,12 @@ public class commands {
                                                         throw new RuntimeException(e);
                                                     }
 
-                                                    ServerCommandSource source = context.getSource();
+                                                    CommandSourceStack source = context.getSource();
                                                     MinecraftServer server = source.getServer();
                                                     teamUtils.rebuildTeams(server);
 
-                                                    context.getSource().sendFeedback(
-                                                            () -> Text.literal("Setting '" + setting + "' updated to " + value),
+                                                    context.getSource().sendSuccess(
+                                                            () -> Component.literal("Setting '" + setting + "' updated to " + value),
                                                             false
                                                     );
                                                     return 1;
@@ -582,19 +582,19 @@ public class commands {
                                 )
                         )
 
-                        .then(CommandManager.literal("set")
-                                .then(CommandManager.argument("field", StringArgumentType.word())
+                        .then(Commands.literal("set")
+                                .then(Commands.argument("field", StringArgumentType.word())
                                         .suggests((ctx, builder) -> {
                                             builder.suggest("name");
                                             builder.suggest("tag");
                                             builder.suggest("color");
                                             return builder.buildFuture();
                                         })
-                                        .then(CommandManager.argument("value", StringArgumentType.greedyString())
+                                        .then(Commands.argument("value", StringArgumentType.greedyString())
                                                 .suggests((ctx, builder) -> {
                                                     String field = StringArgumentType.getString(ctx, "field");
                                                     if (field.equalsIgnoreCase("color")) {
-                                                        for (Formatting f : Formatting.values()) {
+                                                        for (ChatFormatting f : ChatFormatting.values()) {
                                                             if (f.isColor()) {
                                                                 builder.suggest(f.getName());
                                                             }
@@ -605,7 +605,7 @@ public class commands {
                                                 .executes(context -> {
                                                     String field = StringArgumentType.getString(context, "field");
                                                     String value = StringArgumentType.getString(context, "value");
-                                                    ServerPlayerEntity player = context.getSource().getPlayer();
+                                                    ServerPlayer player = context.getSource().getPlayer();
 
                                                     try {
                                                         assert player != null;
@@ -614,12 +614,12 @@ public class commands {
                                                         throw new RuntimeException(e);
                                                     }
 
-                                                    ServerCommandSource source = context.getSource();
+                                                    CommandSourceStack source = context.getSource();
                                                     MinecraftServer server = source.getServer();
                                                     teamUtils.rebuildTeams(server);
 
-                                                    context.getSource().sendFeedback(
-                                                            () -> Text.literal("Successfully updated  " + field),
+                                                    context.getSource().sendSuccess(
+                                                            () -> Component.literal("Successfully updated  " + field),
                                                             false
                                                     );
                                                     return 1;
@@ -628,18 +628,18 @@ public class commands {
                                 )
                         )
 
-                        .then(CommandManager.literal("kick")
-                                .then(CommandManager.argument("playerName", StringArgumentType.word())
+                        .then(Commands.literal("kick")
+                                .then(Commands.argument("playerName", StringArgumentType.word())
                                         .suggests((context, builder) -> {
-                                            ServerPlayerEntity owner = context.getSource().getPlayer();
+                                            ServerPlayer owner = context.getSource().getPlayer();
                                             if (owner == null) return builder.buildFuture();
 
-                                            NbtCompound teams = datManager.get().getData().getCompoundOrEmpty("teams");
-                                            String ownerStr = owner.getUuid().toString();
-                                            NbtCompound teamData = null;
+                                            CompoundTag teams = datManager.get().getData().getCompoundOrEmpty("teams");
+                                            String ownerStr = owner.getUUID().toString();
+                                            CompoundTag teamData = null;
 
-                                            for (String tName : teams.getKeys()) {
-                                                NbtCompound t = teams.getCompoundOrEmpty(tName);
+                                            for (String tName : teams.keySet()) {
+                                                CompoundTag t = teams.getCompoundOrEmpty(tName);
                                                 if (ownerStr.equals(t.getString("owner").orElse(""))) {
                                                     teamData = t;
                                                     break;
@@ -648,11 +648,11 @@ public class commands {
 
                                             if (teamData == null) return builder.buildFuture();
                                             MinecraftServer server = context.getSource().getServer();
-                                            NbtList members = teamData.getListOrEmpty("members");
+                                            ListTag members = teamData.getListOrEmpty("members");
                                             for (int i = 0; i < members.size(); i++) {
                                                 String memberUUID = members.getString(i).orElse("");
                                                 if (!ownerStr.equals(memberUUID)) {
-                                                    ServerPlayerEntity member = server.getPlayerManager().getPlayer(UUID.fromString(memberUUID));
+                                                    ServerPlayer member = server.getPlayerList().getPlayer(UUID.fromString(memberUUID));
 
                                                     if (member != null) builder.suggest(member.getGameProfile().name());
                                                 }
@@ -661,21 +661,21 @@ public class commands {
                                             return builder.buildFuture();
                                         })
                                         .executes(context -> {
-                                            ServerPlayerEntity owner = context.getSource().getPlayer();
+                                            ServerPlayer owner = context.getSource().getPlayer();
                                             if (owner == null) return 0;
 
                                             String targetName = StringArgumentType.getString(context, "playerName");
                                             MinecraftServer server = context.getSource().getServer();
-                                            ServerPlayerEntity target = server.getPlayerManager().getPlayer(targetName);
+                                            ServerPlayer target = server.getPlayerList().getPlayerByName(targetName);
                                             if (target == null) {
-                                                context.getSource().sendError(Text.literal("Player not found or not online!"));
+                                                context.getSource().sendFailure(Component.literal("Player not found or not online!"));
                                                 return 0;
                                             }
 
                                             try {
                                                 datManager.get().kickMember(owner, target);
                                             } catch (IOException e) {
-                                                context.getSource().sendError(Text.literal("Failed to save team data."));
+                                                context.getSource().sendFailure(Component.literal("Failed to save team data."));
                                                 e.printStackTrace();
                                                 return 0;
                                             }

@@ -1,14 +1,13 @@
 package com.bba.allied.data;
 
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtIo;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
-
-import net.minecraft.nbt.NbtList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +18,7 @@ public class datConfig {
 
     public static void InitialiseDatFolder() throws IOException {
         Files.createDirectories(path.getParent());
-        NbtCompound root = CreateDefault();
+        CompoundTag root = CreateDefault();
         if (!Files.exists(path)) {
             NbtIo.write(root, path);
             datManager.init(root);
@@ -31,20 +30,20 @@ public class datConfig {
         }
     }
 
-    public static NbtCompound CreateDefault() {
-        NbtCompound root = new NbtCompound();
+    public static CompoundTag CreateDefault() {
+        CompoundTag root = new CompoundTag();
 
         root.putString("version", "1.0.0");
 
-        NbtCompound teams = new NbtCompound();
+        CompoundTag teams = new CompoundTag();
         root.put("teams", teams);
 
-        NbtCompound settings = new NbtCompound();
+        CompoundTag settings = new CompoundTag();
         root.put("settings", settings);
 
         settings.putInt("maxMembers", 5);
         settings.putBoolean("echest", true);
-        NbtList blockTeamsSettings = new NbtList();
+        ListTag blockTeamsSettings = new ListTag();
         settings.put("blockTeamsSettings", blockTeamsSettings);
 
         return root;

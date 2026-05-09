@@ -5,7 +5,7 @@
 	"name": "Allied",
 	"description": "A mod re-imagining teams, an all in one mod with essential team features for fabric, forge and neo-forge",
 	"authors": [
-		"Me!"
+		"Bba"
 	],
 	"contact": {
 		"sources": "https://github.com/bba5696/Allied"
@@ -22,9 +22,9 @@
 		"allied.mixins.json"
 	],
 	"depends": {
-		"fabricloader": ">=0.18.4",
-		"minecraft": "1.21.11",
-		"java": ">=21",
+		"fabricloader": ">=0.19.2",
+		"minecraft": "~26.1.2",
+		"java": ">=25",
 		"fabric-api": "*"
 	}
 }
