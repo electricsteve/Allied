@@ -7,15 +7,14 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtList;
-import net.minecraft.nbt.NbtString;
+import net.minecraft.ChatFormatting;
+import net.minecraft.commands.Commands;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-
+import net.minecraft.server.level.ServerPlayer;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -41,17 +40,17 @@ public class adminCommands {
 
     public static void registerCommands() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> dispatcher.register(
-                CommandManager.literal("alliedAdmin")
-                        .requires(CommandManager.requirePermissionLevel(CommandManager.ADMINS_CHECK))
-                        .then(CommandManager.literal("memberCap")
-                                .then(CommandManager.argument("value", IntegerArgumentType.integer(1))
+                Commands.literal("alliedAdmin")
+                        .requires(Commands.hasPermission(Commands.LEVEL_ADMINS))
+                        .then(Commands.literal("memberCap")
+                                .then(Commands.argument("value", IntegerArgumentType.integer(1))
                                         .executes(context -> {
-                                            ServerPlayerEntity player = context.getSource().getPlayer();
+                                            ServerPlayer player = context.getSource().getPlayer();
                                             if (player == null) return 0;
 
                                             int newCap = IntegerArgumentType.getInteger(context, "value");
-                                            NbtCompound data = datManager.get().getData();
-                                            NbtCompound settings = data.getCompoundOrEmpty("settings");
+                                            CompoundTag data = datManager.get().getData();
+                                            CompoundTag settings = data.getCompoundOrEmpty("settings");
                                             settings.putInt("maxMembers", newCap);
 
                                             try {
@@ -60,8 +59,8 @@ public class adminCommands {
                                                 throw new RuntimeException(e);
                                             }
 
-                                            context.getSource().sendFeedback(
-                                                    () -> Text.literal("Team member cap set to " + newCap),
+                                            context.getSource().sendSuccess(
+                                                    () -> Component.literal("Team member cap set to " + newCap),
                                                     false
                                             );
                                             return 1;
@@ -69,10 +68,10 @@ public class adminCommands {
                                 )
                         )
 
-                        .then(CommandManager.literal("info")
-                                .then(CommandManager.argument("teamName", StringArgumentType.string())
+                        .then(Commands.literal("info")
+                                .then(Commands.argument("teamName", StringArgumentType.string())
                                         .suggests((context, builder) -> {
-                                            datManager.get().getData().getCompoundOrEmpty("teams").getKeys()
+                                            datManager.get().getData().getCompoundOrEmpty("teams").keySet()
                                                     .forEach(builder::suggest);
                                             return builder.buildFuture();
                                         })
@@ -80,37 +79,37 @@ public class adminCommands {
                                             MinecraftServer server = context.getSource().getServer();
                                             String teamName = StringArgumentType.getString(context, "teamName");
 
-                                            Text info = datManager.get().getTeamInfo(server, teamName);
+                                            Component info = datManager.get().getTeamInfo(server, teamName);
 
-                                            context.getSource().sendFeedback(() -> info, false);
+                                            context.getSource().sendSuccess(() -> info, false);
                                             return 1;
                                         })
                                 )
                         )
 
-                        .then(CommandManager.literal("list")
+                        .then(Commands.literal("list")
                                 .executes(context -> {
-                                    NbtCompound teams = datManager.get().getData().getCompoundOrEmpty("teams");
+                                    CompoundTag teams = datManager.get().getData().getCompoundOrEmpty("teams");
 
                                     if (teams.isEmpty()) {
-                                        context.getSource().sendFeedback(
-                                                () -> Text.literal("There are no teams on the server."),
+                                        context.getSource().sendSuccess(
+                                                () -> Component.literal("There are no teams on the server."),
                                                 false
                                         );
                                         return 1;
                                     }
 
-                                    context.getSource().sendFeedback(
-                                            () -> Text.literal("Teams on the server:")
-                                                    .formatted(Formatting.GOLD),
+                                    context.getSource().sendSuccess(
+                                            () -> Component.literal("Teams on the server:")
+                                                    .withStyle(ChatFormatting.GOLD),
                                             false
                                     );
 
-                                    for (String teamName : teams.getKeys()) {
-                                        context.getSource().sendFeedback(
-                                                () -> Text.literal("- ")
-                                                        .formatted(Formatting.GRAY)
-                                                        .append(Text.literal(teamName).formatted(Formatting.YELLOW)),
+                                    for (String teamName : teams.keySet()) {
+                                        context.getSource().sendSuccess(
+                                                () -> Component.literal("- ")
+                                                        .withStyle(ChatFormatting.GRAY)
+                                                        .append(Component.literal(teamName).withStyle(ChatFormatting.YELLOW)),
                                                 false
                                         );
                                     }
@@ -119,24 +118,24 @@ public class adminCommands {
                                 })
                         )
 
-                        .then(CommandManager.literal("reset")
-                                .then(CommandManager.argument("code", StringArgumentType.string())
+                        .then(Commands.literal("reset")
+                                .then(Commands.argument("code", StringArgumentType.string())
                                         .executes(context -> {
-                                            ServerPlayerEntity player = context.getSource().getPlayer();
+                                            ServerPlayer player = context.getSource().getPlayer();
                                             if (player == null) return 0;
 
-                                            UUID uuid = player.getUuid();
+                                            UUID uuid = player.getUUID();
                                             String enteredCode = StringArgumentType.getString(context, "code");
                                             Confirmation confirm = pendingResets.get(uuid);
 
                                             if (confirm == null || System.currentTimeMillis() > confirm.expiryTime) {
-                                                context.getSource().sendError(Text.literal("You haven't started a reset or the code has expired!"));
+                                                context.getSource().sendFailure(Component.literal("You haven't started a reset or the code has expired!"));
                                                 pendingResets.remove(uuid);
                                                 return 0;
                                             }
 
                                             if (!confirm.code.equalsIgnoreCase(enteredCode)) {
-                                                context.getSource().sendError(Text.literal("Incorrect code!"));
+                                                context.getSource().sendFailure(Component.literal("Incorrect code!"));
                                                 return 0;
                                             }
 
@@ -149,8 +148,8 @@ public class adminCommands {
                                             }
                                             pendingResets.remove(uuid);
 
-                                            context.getSource().sendFeedback(
-                                                    () -> Text.literal("All team data has been wiped!").formatted(Formatting.RED),
+                                            context.getSource().sendSuccess(
+                                                    () -> Component.literal("All team data has been wiped!").withStyle(ChatFormatting.RED),
                                                     false
                                             );
 
@@ -158,12 +157,12 @@ public class adminCommands {
                                         })
                                 )
                                 .executes(context -> {
-                                    ServerPlayerEntity player = context.getSource().getPlayer();
+                                    ServerPlayer player = context.getSource().getPlayer();
                                     if (player == null) return 0;
 
-                                    UUID uuid = player.getUuid();
+                                    UUID uuid = player.getUUID();
                                     if (pendingResets.containsKey(uuid)) {
-                                        context.getSource().sendError(Text.literal(
+                                        context.getSource().sendFailure(Component.literal(
                                                 "You already have a pending reset! Enter your existing code or wait until it expires."
                                         ));
                                         return 0;
@@ -173,13 +172,13 @@ public class adminCommands {
                                     long expiry = System.currentTimeMillis() + 60_000;
                                     pendingResets.put(uuid, new Confirmation(code, expiry));
 
-                                    context.getSource().sendFeedback(
-                                            () -> Text.literal("⚠ Are you sure you want to continue? This will wipe all data!").formatted(Formatting.RED),
+                                    context.getSource().sendSuccess(
+                                            () -> Component.literal("⚠ Are you sure you want to continue? This will wipe all data!").withStyle(ChatFormatting.RED),
                                             false
                                     );
 
-                                    context.getSource().sendFeedback(
-                                            () -> Text.literal("Please enter the code to confirm: /alliedAdmin reset " + code).formatted(Formatting.YELLOW),
+                                    context.getSource().sendSuccess(
+                                            () -> Component.literal("Please enter the code to confirm: /alliedAdmin reset " + code).withStyle(ChatFormatting.YELLOW),
                                             false
                                     );
 
@@ -187,32 +186,32 @@ public class adminCommands {
                                 })
                         )
 
-                        .then(CommandManager.literal("blockSettings")
-                                .then(CommandManager.argument("teamName", StringArgumentType.string())
+                        .then(Commands.literal("blockSettings")
+                                .then(Commands.argument("teamName", StringArgumentType.string())
                                         .suggests((context, builder) -> {
                                             datManager.get().getData()
                                                     .getCompoundOrEmpty("teams")
-                                                    .getKeys()
+                                                    .keySet()
                                                     .forEach(builder::suggest);
                                             return builder.buildFuture();
                                         })
-                                        .then(CommandManager.argument("value", BoolArgumentType.bool())
+                                        .then(Commands.argument("value", BoolArgumentType.bool())
                                                 .executes(context -> {
                                                     String teamName = StringArgumentType.getString(context, "teamName");
                                                     boolean value = BoolArgumentType.getBool(context, "value");
 
-                                                    NbtCompound data = datManager.get().getData();
-                                                    NbtCompound teams = data.getCompoundOrEmpty("teams");
+                                                    CompoundTag data = datManager.get().getData();
+                                                    CompoundTag teams = data.getCompoundOrEmpty("teams");
 
                                                     if (!teams.contains(teamName)) {
-                                                        context.getSource().sendError(
-                                                                Text.literal("Team '" + teamName + "' does not exist!")
+                                                        context.getSource().sendFailure(
+                                                                Component.literal("Team '" + teamName + "' does not exist!")
                                                         );
                                                         return 0;
                                                     }
 
-                                                    NbtCompound settings = data.getCompoundOrEmpty("settings");
-                                                    NbtList blocked = settings.getListOrEmpty("blockTeamsSettings");
+                                                    CompoundTag settings = data.getCompoundOrEmpty("settings");
+                                                    ListTag blocked = settings.getListOrEmpty("blockTeamsSettings");
 
                                                     int index = -1;
                                                     for (int i = 0; i < blocked.size(); i++) {
@@ -224,28 +223,28 @@ public class adminCommands {
 
                                                     if (value) {
                                                         if (index != -1) {
-                                                            context.getSource().sendError(
-                                                                    Text.literal("This team is already blocked!")
+                                                            context.getSource().sendFailure(
+                                                                    Component.literal("This team is already blocked!")
                                                             );
                                                             return 0;
                                                         }
 
-                                                        blocked.add(NbtString.of(teamName));
-                                                        context.getSource().sendFeedback(
-                                                                () -> Text.literal("Team '" + teamName + "' is now blocked from changing settings."),
+                                                        blocked.add(StringTag.valueOf(teamName));
+                                                        context.getSource().sendSuccess(
+                                                                () -> Component.literal("Team '" + teamName + "' is now blocked from changing settings."),
                                                                 false
                                                         );
                                                     } else {
                                                         if (index == -1) {
-                                                            context.getSource().sendError(
-                                                                    Text.literal("This team is not blocked already!")
+                                                            context.getSource().sendFailure(
+                                                                    Component.literal("This team is not blocked already!")
                                                             );
                                                             return 0;
                                                         }
 
                                                         blocked.remove(index);
-                                                        context.getSource().sendFeedback(
-                                                                () -> Text.literal("Team '" + teamName + "' can now change settings."),
+                                                        context.getSource().sendSuccess(
+                                                                () -> Component.literal("Team '" + teamName + "' can now change settings."),
                                                                 false
                                                         );
                                                     }
@@ -264,69 +263,69 @@ public class adminCommands {
                                 )
                         )
 
-                        .then(CommandManager.literal("modifySettings")
-                                .then(CommandManager.argument("teamName", StringArgumentType.string())
+                        .then(Commands.literal("modifySettings")
+                                .then(Commands.argument("teamName", StringArgumentType.string())
                                         .suggests((context, builder) -> {
-                                            datManager.get().getData().getCompoundOrEmpty("teams").getKeys()
+                                            datManager.get().getData().getCompoundOrEmpty("teams").keySet()
                                                     .forEach(builder::suggest);
                                             return builder.buildFuture();
                                         })
                                         .executes(context -> {
                                             String teamName = StringArgumentType.getString(context, "teamName");
-                                            ServerPlayerEntity player = context.getSource().getPlayer();
+                                            ServerPlayer player = context.getSource().getPlayer();
                                             assert player != null;
 
                                             try {
-                                                datManager.get().handleSettingsAdmin(player.getCommandSource(), teamName, null, null);
+                                                datManager.get().handleSettingsAdmin(player.createCommandSourceStack(), teamName, null, null);
                                             } catch (IOException | CommandSyntaxException e) {
                                                 throw new RuntimeException(e);
                                             }
 
                                             return 1;
                                         })
-                                        .then(CommandManager.argument("setting", StringArgumentType.string())
+                                        .then(Commands.argument("setting", StringArgumentType.string())
                                                 .suggests((context, builder) -> {
                                                     String teamName = StringArgumentType.getString(context, "teamName");
-                                                    NbtCompound teams = datManager.get().getData().getCompoundOrEmpty("teams");
-                                                    NbtCompound teamData = teams.getCompoundOrEmpty(teamName);
+                                                    CompoundTag teams = datManager.get().getData().getCompoundOrEmpty("teams");
+                                                    CompoundTag teamData = teams.getCompoundOrEmpty(teamName);
 
-                                                    NbtCompound settings = teamData.getCompoundOrEmpty("settings");
-                                                    for (String key : settings.getKeys()) builder.suggest(key);
+                                                    CompoundTag settings = teamData.getCompoundOrEmpty("settings");
+                                                    for (String key : settings.keySet()) builder.suggest(key);
 
                                                     return builder.buildFuture();
                                                 })
                                                 .executes(context -> {
                                                     String teamName = StringArgumentType.getString(context, "teamName");
                                                     String setting = StringArgumentType.getString(context, "setting");
-                                                    ServerPlayerEntity player = context.getSource().getPlayer();
+                                                    ServerPlayer player = context.getSource().getPlayer();
                                                     assert player != null;
 
                                                     try {
-                                                        datManager.get().handleSettingsAdmin(player.getCommandSource(), teamName, setting, null);
+                                                        datManager.get().handleSettingsAdmin(player.createCommandSourceStack(), teamName, setting, null);
                                                     } catch (IOException | CommandSyntaxException e) {
                                                         throw new RuntimeException(e);
                                                     }
 
                                                     return 1;
                                                 })
-                                                .then(CommandManager.argument("value", BoolArgumentType.bool())
+                                                .then(Commands.argument("value", BoolArgumentType.bool())
                                                         .executes(context -> {
                                                             String teamName = StringArgumentType.getString(context, "teamName");
                                                             String setting = StringArgumentType.getString(context, "setting");
                                                             boolean value = BoolArgumentType.getBool(context, "value");
-                                                            ServerPlayerEntity player = context.getSource().getPlayer();
+                                                            ServerPlayer player = context.getSource().getPlayer();
                                                             assert player != null;
 
                                                             try {
-                                                                datManager.get().handleSettingsAdmin(player.getCommandSource(), teamName, setting, value);
+                                                                datManager.get().handleSettingsAdmin(player.createCommandSourceStack(), teamName, setting, value);
                                                             } catch (IOException | CommandSyntaxException e) {
                                                                 throw new RuntimeException(e);
                                                             }
 
                                                             teamUtils.rebuildTeams(context.getSource().getServer());
 
-                                                            context.getSource().sendFeedback(
-                                                                    () -> Text.literal("Admin set '" + setting + "' for team '" + teamName + "' to " + value),
+                                                            context.getSource().sendSuccess(
+                                                                    () -> Component.literal("Admin set '" + setting + "' for team '" + teamName + "' to " + value),
                                                                     false
                                                             );
                                                             return 1;
