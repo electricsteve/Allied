@@ -257,7 +257,11 @@ public class commands {
                                                         target.getUUID(),
                                                         context.getSource().getServer()
                                                 );
+                                            } catch (CommandSyntaxException e) {
+                                                context.getSource().sendFailure((Component) e.getRawMessage());
+                                                return 0;
                                             } catch (Exception e) {
+                                                context.getSource().sendFailure(Component.literal("Internal error occured, please contact server owner."));
                                                 e.printStackTrace();
                                                 return 0;
                                             }
