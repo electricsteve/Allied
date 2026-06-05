@@ -662,7 +662,6 @@ public class datManager {
     public void executeSet(ServerPlayer player, String field, String value) throws CommandSyntaxException, IOException {
 
         String playerUuid = player.getUUID().toString();
-
         CompoundTag data = datManager.get().getData();
         CompoundTag teams = data.getCompoundOrEmpty("teams");
 
@@ -708,10 +707,12 @@ public class datManager {
             }
         }
 
+        CompoundTag settings = data.getCompoundOrEmpty("settings");
+
         switch (field) {
 
             case "name" -> {
-                int maxNameLength = data.getIntOr("maxTeamNameLength", 16);
+                int maxNameLength = settings.getIntOr("maxTeamNameLength", 16);
                 if (value.length() > maxNameLength) {
                     throw new SimpleCommandExceptionType(
                             Component.nullToEmpty("Team Name is too long!")
@@ -722,7 +723,7 @@ public class datManager {
             }
 
             case "tag" -> {
-                int maxTagLength = data.getIntOr("maxTeamTagLength", 4);
+                int maxTagLength = settings.getIntOr("maxTeamTagLength", 4);
                 if (value.length() > maxTagLength) {
                     throw new SimpleCommandExceptionType(
                             Component.nullToEmpty("Team Tag is too long!")
