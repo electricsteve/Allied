@@ -131,8 +131,9 @@ public class datManager {
             ).create();
         }
 
-        int maxNameLength = data.getIntOr("maxTeamNameLength", 16);
-        int maxTagLength = data.getIntOr("maxTeamTagLength", 4);
+        CompoundTag settings = data.getCompoundOrEmpty("settings");
+        int maxNameLength = settings.getIntOr("maxTeamNameLength", 16);
+        int maxTagLength = settings.getIntOr("maxTeamTagLength", 4);
         if (teamName.length() > maxNameLength || teamTag.length() > maxTagLength) {
             throw new SimpleCommandExceptionType(
                     Component.nullToEmpty("Team Name or Team Tag is too long!")
