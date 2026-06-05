@@ -67,7 +67,56 @@ public class adminCommands {
                                         })
                                 )
                         )
+                        .then(Commands.literal("maxTeamNameLength")
+                                .then(Commands.argument("value", IntegerArgumentType.integer(1))
+                                        .executes(context -> {
+                                            ServerPlayer player = context.getSource().getPlayer();
+                                            if (player == null) return 0;
 
+                                            int newLength = IntegerArgumentType.getInteger(context, "value");
+                                            CompoundTag data = datManager.get().getData();
+                                            CompoundTag settings = data.getCompoundOrEmpty("settings");
+                                            settings.putInt("maxTeamNameLength", newLength);
+
+                                            try {
+                                                datManager.get().save();
+                                            } catch (IOException e) {
+                                                throw new RuntimeException(e);
+                                            }
+
+                                            context.getSource().sendSuccess(
+                                                    () -> Component.literal("Team name max length set to " + newLength),
+                                                    false
+                                            );
+                                            return 1;
+                                        })
+                                )
+                        )
+                        .then(Commands.literal("maxTeamTagLength")
+                                .then(Commands.argument("value", IntegerArgumentType.integer(1))
+                                        .executes(context -> {
+                                            ServerPlayer player = context.getSource().getPlayer();
+                                            if (player == null) return 0;
+
+                                            int newLength = IntegerArgumentType.getInteger(context, "value");
+                                            CompoundTag data = datManager.get().getData();
+                                            CompoundTag settings = data.getCompoundOrEmpty("settings");
+                                            settings.putInt("maxTeamTagLength", newLength);
+
+                                            try {
+                                                datManager.get().save();
+                                            } catch (IOException e) {
+                                                throw new RuntimeException(e);
+                                            }
+
+                                            context.getSource().sendSuccess(
+                                                    () -> Component.literal("Team tag max length set to " + newLength),
+                                                    false
+                                            );
+                                            return 1;
+                                        })
+                                )
+                        )
                         .then(Commands.literal("info")
                                 .then(Commands.argument("teamName", StringArgumentType.string())
                                         .suggests((context, builder) -> {

@@ -45,6 +45,8 @@ public class datConfig {
         settings.putBoolean("echest", true);
         ListTag blockTeamsSettings = new ListTag();
         settings.put("blockTeamsSettings", blockTeamsSettings);
+        settings.putInt("maxTeamNameLength", 16);
+        settings.putInt("maxTeamTagLength", 4);
 
         return root;
     }

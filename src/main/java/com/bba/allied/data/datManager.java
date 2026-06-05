@@ -131,7 +131,9 @@ public class datManager {
             ).create();
         }
 
-        if (teamName.length() > 16 || teamTag.length() > 4) {
+        int maxNameLength = data.getIntOr("maxTeamNameLength", 16);
+        int maxTagLength = data.getIntOr("maxTeamTagLength", 4);
+        if (teamName.length() > maxNameLength || teamTag.length() > maxTagLength) {
             throw new SimpleCommandExceptionType(
                     Component.nullToEmpty("Team Name or Team Tag is too long!")
             ).create();
@@ -708,11 +710,25 @@ public class datManager {
         switch (field) {
 
             case "name" -> {
+                int maxNameLength = data.getIntOr("maxTeamNameLength", 16);
+                if (value.length() > maxNameLength) {
+                    throw new SimpleCommandExceptionType(
+                            Component.nullToEmpty("Team Name is too long!")
+                    ).create();
+                }
                 teams.put(value, foundTeam);
                 teams.remove(foundTeamName);
             }
 
-            case "tag" -> foundTeam.putString("teamTag", value);
+            case "tag" -> {
+                int maxTagLength = data.getIntOr("maxTeamTagLength", 4);
+                if (value.length() > maxTagLength) {
+                    throw new SimpleCommandExceptionType(
+                            Component.nullToEmpty("Team Tag is too long!")
+                    ).create();
+                }
+                foundTeam.putString("teamTag", value);
+            }
 
             case "color" -> {
                 try {
